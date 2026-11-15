@@ -79,7 +79,54 @@ function copyIt(txt){
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){alert('Der Verlauf wurde kopiert. Du kannst ihn jetzt in einer Nachricht oder Mail einfügen.')},function(){alert('Teilen ist auf diesem Gerät nicht möglich.')})}
   else alert('Teilen ist auf diesem Gerät nicht möglich.');
 }
+function shareImage(){
+  var P=S.players,n=P.length,t=totals(),G=S.games,done=S.rounds>0&&G.length>=S.rounds*n;
+  var W=720,pad=24,c0=96,rh=36,top=92,cw=(W-2*pad-c0)/n,H=top+rh*(G.length+3)+pad,sc=2;
+  var cv=document.createElement('canvas');cv.width=W*sc;cv.height=H*sc;
+  var x=cv.getContext('2d');if(!x)return null;
+  x.scale(sc,sc);x.fillStyle='#fff';x.fillRect(0,0,W,H);x.textBaseline='middle';
+  var F='system-ui,-apple-system,Roboto,sans-serif',INK='#14281F',MU='#55665C',GR='#1F5A40',RD='#B3262E',LN='#D3DAD2';
+  function fit(s,w){s=String(s);if(x.measureText(s).width<=w)return s;while(s.length>1&&x.measureText(s+'…').width>w)s=s.slice(0,-1);return s+'…'}
+  function T(s,px,py,f,col,al,w){x.font=f+' '+F;x.fillStyle=col;x.textAlign=al;x.fillText(w?fit(s,w):s,px,py)}
+  function L(py,lw,col){x.strokeStyle=col;x.lineWidth=lw;x.beginPath();x.moveTo(pad,py);x.lineTo(W-pad,py);x.stroke()}
+  function cx(i){return pad+c0+cw*i+cw/2}
+  T('Doppelkopf – '+(done?'Endstand':'Zwischenstand'),pad,34,'700 26px',INK,'left');
+  T(new Date().toLocaleDateString('de-DE')+' · '+G.length+(G.length==1?' Spiel':' Spiele'),pad,64,'400 15px',MU,'left');
+  var y=top;
+  T('Nr.',pad+6,y+rh/2,'600 14px',MU,'left');
+  P.forEach(function(p,i){T(p,cx(i),y+rh/2,'700 15px',INK,'center',cw-8)});
+  y+=rh;L(y,2,INK);
+  G.forEach(function(g,k){
+    if(g.bk){x.fillStyle='#EDF0EA';x.fillRect(pad,y,W-2*pad,rh)}
+    T(String(k+1),pad+6,y+rh/2,'600 16px',INK,'left');
+    if(g.bk){x.font='600 16px '+F;var nw=x.measureText(String(k+1)).width;T('Bock',pad+6+nw+8,y+rh/2,'600 12px',MU,'left')}
+    P.forEach(function(_,i){
+      if(sits(i,g.dealer)){T('–',cx(i),y+rh/2,'400 17px',MU,'center');return}
+      var v=g.d[i];T(fmt(v),cx(i),y+rh/2,'500 17px',v>0?GR:v<0?RD:INK,'center')});
+    y+=rh;L(y,1,LN)});
+  L(y,2,INK);
+  T('Summe',pad+6,y+rh/2,'700 16px',INK,'left');
+  P.forEach(function(_,i){T(fmt(t[i]),cx(i),y+rh/2,'700 18px',t[i]>0?GR:t[i]<0?RD:INK,'center')});
+  y+=rh;L(y,1,LN);
+  var o=P.map(function(_,i){return i}).sort(function(a,b){return t[b]-t[a]||a-b}),pl={},r=0;
+  o.forEach(function(i,k){if(k==0||t[i]!=t[o[k-1]])r=k+1;pl[i]=r});
+  T('Platz',pad+6,y+rh/2,'600 14px',MU,'left');
+  P.forEach(function(_,i){T(pl[i]+'.',cx(i),y+rh/2,'600 16px',INK,'center')});
+  var u=cv.toDataURL('image/png'),b=atob(u.split(',')[1]),a=new Uint8Array(b.length);
+  for(var j=0;j<b.length;j++)a[j]=b.charCodeAt(j);
+  return new Blob([a],{type:'image/png'});
+}
 function doShare(){
+  try{
+    var bl=window.File&&navigator.canShare?shareImage():null;
+    if(bl){
+      var f=new File([bl],'Doppelkopf-Spielstand.png',{type:'image/png'});
+      if(navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Doppelkopf Spielstand'}).catch(function(e){if(!e||e.name!='AbortError')textShare()});return}
+    }
+  }catch(e){}
+  textShare();
+}
+function textShare(){
   var txt=shareText();
   if(navigator.share){navigator.share({title:'Doppelkopf Verlauf',text:txt}).catch(function(e){if(!e||e.name!='AbortError')copyIt(txt)})}
   else copyIt(txt);
