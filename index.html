@@ -63,6 +63,27 @@ try{var r=localStorage.getItem('dk1');if(r){var o=JSON.parse(r);if(o&&o.players)
 function save(){try{localStorage.setItem('dk1',JSON.stringify(S))}catch(e){}}
 function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function fmt(x){return x>0?'+'+x:x<0?'\u2212'+(-x):'0'}
+function shareText(){
+  var P=S.players,t=totals(),L=[],done=S.rounds>0&&S.games.length>=S.rounds*P.length;
+  L.push('Doppelkopf – Verlauf ('+new Date().toLocaleDateString('de-DE')+')');
+  L.push('Spieler: '+P.join(', '));L.push('');
+  S.games.forEach(function(g,k){
+    var a=[];P.forEach(function(p,i){if(!sits(i,g.dealer))a.push(p+' '+fmt(g.d[i]))});
+    L.push('Spiel '+(k+1)+(g.bk?' (Bock)':'')+': '+a.join(', '))});
+  L.push('');L.push((done?'Endstand':'Zwischenstand')+':');
+  var o=P.map(function(_,i){return i}).sort(function(a,b){return t[b]-t[a]||a-b}),pl=0;
+  o.forEach(function(i,k){if(k==0||t[i]!=t[o[k-1]])pl=k+1;L.push(pl+'. '+P[i]+' '+fmt(t[i]))});
+  return L.join('\n');
+}
+function copyIt(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){alert('Der Verlauf wurde kopiert. Du kannst ihn jetzt in einer Nachricht oder Mail einfügen.')},function(){alert('Teilen ist auf diesem Gerät nicht möglich.')})}
+  else alert('Teilen ist auf diesem Gerät nicht möglich.');
+}
+function doShare(){
+  var txt=shareText();
+  if(navigator.share){navigator.share({title:'Doppelkopf Verlauf',text:txt}).catch(function(e){if(!e||e.name!='AbortError')copyIt(txt)})}
+  else copyIt(txt);
+}
 function sits(i,d){var n=S.players.length;return n==5?i==d:n==6?(i==d||i==(d+n-1)%n):false}
 function totals(){var t=S.players.map(function(){return 0});S.games.forEach(function(g){g.d.forEach(function(x,i){t[i]+=x})});return t}
 function cur(){
@@ -84,7 +105,7 @@ function game(){
   var h=(fx?'<p class="sub">Runde '+Math.min(Math.floor(S.games.length/n)+1,S.rounds)+' von '+S.rounds+' · Spiel '+Math.min(S.games.length+1,tot)+' von '+tot+'</p>':'')+'<div class="board" style="grid-template-columns:repeat('+n+',1fr)">'+P.map(function(p,i){
     return'<div class="pc'+(i==d?' d':'')+'"><div class="n">'+esc(p)+'</div><div class="t '+(t[i]>0?'pos':t[i]<0?'neg':'')+'">'+fmt(t[i])+'</div><div class="b">'+(i==d?(sits(i,d)?'Geber, aus':'Geber'):sits(i,d)?'aus':'')+'</div></div>'}).join('')+'</div>';
   h+='<label class="lab" for="dealer">Geber</label><select id="dealer">'+P.map(function(p,i){return'<option value="'+i+'"'+(i==d?' selected':'')+'>'+esc(p)+'</option>'}).join('')+'</select>';
-  if(S.ask){h+='<div class="ask"><p>Gibt es neuen Bock?</p>'+(S.bock>0?'<p class="hint" style="color:var(--muted)">Offene Bockspiele: '+S.bock+'</p>':'')+'<div class="two"><button data-a="bock">Bock (+'+n+')</button><button class="primary" style="margin-top:0" data-a="fin">'+(S.askAdd?'Fertig':'Kein Bock')+'</button></div></div>'}else if(done){h+='<div class="ask"><p>Alle '+S.rounds+' Runden gespielt.</p>'+(S.bock>0?'<p class="hint" style="color:var(--muted)">Offene Bockspiele: '+S.bock+'. Sie gelten, wenn Du eine Runde anhängst.</p>':'')+'<button class="primary" style="margin-top:0" data-a="addr">Runde hinzufügen</button></div>'}else{h+=(S.bock>0?'<div class="bk">Bockspiel: Wert wird verdoppelt, noch '+S.bock+' offen</div>':'')+'<h2>Spiel eintragen</h2><label class="lab" for="val">Spielwert</label><input id="val" type="number" inputmode="numeric" min="0" step="1" value="'+esc(val)+'" placeholder="Punkte">';
+  if(S.ask){h+='<div class="ask"><p>Gibt es neuen Bock?</p>'+(S.bock>0?'<p class="hint" style="color:var(--muted)">Offene Bockspiele: '+S.bock+'</p>':'')+'<div class="two"><button data-a="bock">Bock (+'+n+')</button><button class="primary" style="margin-top:0" data-a="fin">'+(S.askAdd?'Fertig':'Kein Bock')+'</button></div></div>'}else if(done){h+='<div class="ask"><p>'+(S.rounds==1?'Die Runde ist gespielt.':'Alle '+S.rounds+' Runden gespielt.')+'</p>'+(S.bock>0?'<p class="hint" style="color:var(--muted)">Offene Bockspiele: '+S.bock+'. Sie gelten, wenn Du eine Runde anhängst.</p>':'')+'<button class="primary" style="margin-top:0" data-a="addr">Runde hinzufügen</button><button class="ghost" data-a="share">Ergebnis teilen</button></div>'}else{h+=(S.bock>0?'<div class="bk">Bockspiel: Wert wird verdoppelt, noch '+S.bock+' offen</div>':'')+'<h2>Spiel eintragen</h2><label class="lab" for="val">Spielwert</label><input id="val" type="number" inputmode="numeric" min="0" step="1" value="'+esc(val)+'" placeholder="Punkte">';
   h+=P.map(function(p,i){
     if(sits(i,d))return'<div class="row off"><span class="nm">'+esc(p)+'</span><span class="hint">setzt aus</span></div>';
     return'<div class="row"><span class="nm">'+esc(p)+'</span><span id="pv'+i+'" class="pv '+(c.pv[i]>0?'pos':'neg')+'">'+(i in c.pv?fmt(c.pv[i]):'')+'</span>'+
@@ -100,7 +121,7 @@ function game(){
       h+='<tr><td>'+(k+1)+(g.bk?' <span class="bkm">Bock</span>':'')+'<small>Wert '+g.value+(g.bk?', ×2':'')+'</small></td>'+P.map(function(_,i){return'<td>'+(sits(i,g.dealer)?'\u2013':fmt(g.d[i]))+'</td>'}).join('')+'</tr>'}
     h+='</tbody></table></div>';
   }
-  h+=(fx&&!done?'<button class="ghost" data-a="addr">Runde hinzufügen</button>':'')+'<div class="foot"><button data-a="undo"'+(S.games.length?'':' disabled')+'>Letztes Spiel zurück</button><button data-a="reset">'+(armed?'Wirklich löschen?':'Neue Runde')+'</button></div><button class="ghost" data-a="wipe">'+(armedW?'Wirklich alles löschen?':'Alles löschen (Namen und Verlauf)')+'</button>';
+  h+=(S.games.length?'<button class="ghost" style="margin-top:12px" data-a="share">Verlauf teilen</button>':'')+(fx&&!done?'<button class="ghost" data-a="addr">Runde hinzufügen</button>':'')+'<div class="foot"><button data-a="undo"'+(S.games.length?'':' disabled')+'>Letztes Spiel zurück</button><button data-a="reset">'+(armed?'Wirklich löschen?':'Neue Runde')+'</button></div><button class="ghost" data-a="wipe">'+(armedW?'Wirklich alles löschen?':'Alles löschen (Namen und Verlauf)')+'</button>';
   $('#app').innerHTML=h;
 }
 function render(){S.started?game():setup()}
@@ -120,7 +141,7 @@ $('#app').addEventListener('click',function(e){
     var c=cur();if(!c.ok)return;
     S.games.push({dealer:S.dealer,value:+val,bk:S.bock>0,bb:S.bock||0,d:S.players.map(function(_,k){return c.pv[k]||0})});
     msg='';if(S.bock>0)S.bock--;S.ask=true;S.askAdd=0;S.dealer=(S.dealer+1)%S.players.length;sel={};val='';save();render()}
-  else if(a=='re'){rounds=0;render()}else if(a=='rf'){rounds=rounds||-1;render()}else if(a=='addr'){S.rounds=(S.rounds||0)+1;rounds=S.rounds;save();render()}
+  else if(a=='share'){doShare()}else if(a=='re'){rounds=0;render()}else if(a=='rf'){rounds=rounds||-1;render()}else if(a=='addr'){S.rounds=(S.rounds||0)+1;rounds=S.rounds;save();render()}
   else if(a=='wipe'){
     if(!armedW){armedW=true;render();setTimeout(function(){armedW=false;render()},4000)}
     else{armedW=false;rounds=0;names=['','','',''];S={players:[],dealer:0,games:[],bock:0,ask:false,askAdd:0,started:false};sel={};val='';try{localStorage.removeItem('dk1')}catch(e){}render()}}
