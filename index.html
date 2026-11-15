@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Doppelkopf Zähler</title>
+<style>
+:root{color-scheme:light dark;--bg:#EDF0EA;--ink:#14281F;--card:#fff;--win:#1F5A40;--onw:#fff;--red:#B3262E;--muted:#55665C;--line:#D3DAD2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0F1A15;--ink:#E6EEE8;--card:#17261E;--win:#5FB88A;--onw:#0F1A15;--red:#E2727A;--muted:#95A79C;--line:#2A3D32}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0F1A15;--ink:#E6EEE8;--card:#17261E;--win:#5FB88A;--onw:#0F1A15;--red:#E2727A;--muted:#95A79C;--line:#2A3D32}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "Avenir Next",system-ui,-apple-system,sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:480px;margin:0 auto;padding:16px 16px 40px}
+h1{font-size:28px;margin:8px 0 4px;letter-spacing:-.01em}
+h2{font-size:17px;margin:24px 0 8px}
+.sub{color:var(--muted);margin:0 0 16px}
+input,select,button{font:inherit;color:inherit}
+input,select{width:100%;box-sizing:border-box;min-height:46px;padding:0 12px;margin:0 0 8px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+button{min-height:46px;border-radius:10px;border:1px solid var(--line);background:var(--card);padding:0 14px;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--win);outline-offset:1px}
+.primary{width:100%;background:var(--win);color:var(--onw);border-color:var(--win);font-weight:600;margin-top:8px}
+.primary:disabled{opacity:.4;cursor:default}
+.ghost{width:100%;background:none;margin-top:4px}
+.board{display:grid;gap:6px;margin-bottom:12px}
+.pc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center;min-width:0}
+.pc .n{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc .t{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.pc .b{font-size:11px;min-height:15px;color:var(--muted)}
+.pc.d{border-color:var(--ink);box-shadow:inset 0 -3px 0 var(--ink)}
+.pc.d .b{color:var(--ink);font-weight:600}
+.pos{color:var(--win)}.neg{color:var(--red)}
+.row{display:grid;grid-template-columns:1fr 40px 92px 92px;gap:6px;align-items:center;margin-bottom:6px}
+.row.off{grid-template-columns:1fr auto;opacity:.55;padding:0 4px;min-height:46px}
+.row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:4px}
+.pv{font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.seg{padding:0}
+.seg.on.w{background:var(--win);color:var(--onw);border-color:var(--win);font-weight:600}
+.seg.on.l{background:var(--red);color:var(--bg);border-color:var(--red);font-weight:600}
+.hint{font-size:13px}
+.lab{font-size:14px;color:var(--muted);margin:0 0 4px;display:block}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;font-weight:600;color:var(--muted);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td small{display:block;color:var(--muted);font-size:11px}
+.bkm{font-size:11px;font-weight:600;color:var(--ink)}
+.empty{color:var(--muted)}
+.bk{background:var(--card);border:1px solid var(--ink);border-radius:10px;padding:10px 12px;margin:16px 0 0;font-weight:600}
+.ask{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:16px}
+.ask p{margin:0 0 10px;font-weight:600}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.foot{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+var $=function(s){return document.querySelector(s)};
+var S={players:[],dealer:0,games:[],started:false},sel={},val='',names=['','','',''],rounds=0,armed=false,armedW=false;
+try{var r=localStorage.getItem('dk1');if(r){var o=JSON.parse(r);if(o&&o.players)S=o}}catch(e){}
+function save(){try{localStorage.setItem('dk1',JSON.stringify(S))}catch(e){}}
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fmt(x){return x>0?'+'+x:x<0?'\u2212'+(-x):'0'}
+function sits(i,d){var n=S.players.length;return n==5?i==d:n==6?(i==d||i==(d+n-1)%n):false}
+function totals(){var t=S.players.map(function(){return 0});S.games.forEach(function(g){g.d.forEach(function(x,i){t[i]+=x})});return t}
+function cur(){
+  var n=S.players.length,out=n==5,d=S.dealer,w=[],l=[];
+  S.players.forEach(function(_,i){if(sits(i,d))return;if(sel[i]=='w')w.push(i);if(sel[i]=='l')l.push(i)});
+  var ok=val!==''&&+val>=0&&w.length>0&&l.length>0&&w.length+l.length==4,pv={};
+  if(ok){var m=Math.max(w.length,l.length),f=S.bock>0?2:1;w.forEach(function(i){pv[i]=f*(+val)*m/w.length});l.forEach(function(i){pv[i]=-f*(+val)*m/l.length})}
+  return{ok:ok,pv:pv}
+}
+function setup(){
+  var n=names.length;
+  $('#app').innerHTML='<h1>Doppelkopf</h1><p class="sub">Spieler eintragen, vier bis sechs.</p>'+
+  names.map(function(x,i){return'<input class="name" data-i="'+i+'" value="'+esc(x)+'" placeholder="Spieler '+(i+1)+'" autocomplete="off" autocapitalize="words" maxlength="14" aria-label="Name Spieler '+(i+1)+'">'}).join('')+
+  (n<6?'<button class="ghost" data-a="padd">Spieler hinzufügen</button>':'')+(n>4?'<button class="ghost" data-a="prem">Spieler entfernen</button>':'')+
+  '<h2>Wie viele Runden?</h2><p class="hint" style="color:var(--muted);margin:0 0 8px">Eine Runde dauert, bis jeder einmal gegeben hat (bei '+n+' Spielern '+n+' Spiele).</p><div class="two" style="margin-bottom:8px"><button class="seg'+(rounds?'':' on w')+'" data-a="re">Endlos</button><button class="seg'+(rounds?' on w':'')+'" data-a="rf">Feste Anzahl</button></div>'+(rounds?'<input id="rn" type="number" inputmode="numeric" min="1" step="1" value="'+(rounds>0?rounds:'')+'" placeholder="Anzahl Runden" aria-label="Anzahl Runden">':'')+'<button class="primary" data-a="go"'+(rounds<0?' disabled':'')+'>Runde starten</button><button class="ghost" data-a="wipe">'+(armedW?'Wirklich alles löschen?':'Alles löschen')+'</button>';
+}
+function game(){
+  var P=S.players,n=P.length,out=n==5,d=S.dealer,t=totals(),c=cur(),fx=S.rounds>0,tot=S.rounds*n,done=fx&&S.games.length>=tot;
+  var h=(fx?'<p class="sub">Runde '+Math.min(Math.floor(S.games.length/n)+1,S.rounds)+' von '+S.rounds+' · Spiel '+Math.min(S.games.length+1,tot)+' von '+tot+'</p>':'')+'<div class="board" style="grid-template-columns:repeat('+n+',1fr)">'+P.map(function(p,i){
+    return'<div class="pc'+(i==d?' d':'')+'"><div class="n">'+esc(p)+'</div><div class="t '+(t[i]>0?'pos':t[i]<0?'neg':'')+'">'+fmt(t[i])+'</div><div class="b">'+(i==d?(sits(i,d)?'Geber, aus':'Geber'):sits(i,d)?'aus':'')+'</div></div>'}).join('')+'</div>';
+  h+='<label class="lab" for="dealer">Geber</label><select id="dealer">'+P.map(function(p,i){return'<option value="'+i+'"'+(i==d?' selected':'')+'>'+esc(p)+'</option>'}).join('')+'</select>';
+  if(S.ask){h+='<div class="ask"><p>Gibt es neuen Bock?</p>'+(S.bock>0?'<p class="hint" style="color:var(--muted)">Offene Bockspiele: '+S.bock+'</p>':'')+'<div class="two"><button data-a="bock">Bock (+'+n+')</button><button class="primary" style="margin-top:0" data-a="fin">'+(S.askAdd?'Fertig':'Kein Bock')+'</button></div></div>'}else if(done){h+='<div class="ask"><p>Alle '+S.rounds+' Runden gespielt.</p>'+(S.bock>0?'<p class="hint" style="color:var(--muted)">Offene Bockspiele: '+S.bock+'. Sie gelten, wenn Du eine Runde anhängst.</p>':'')+'<button class="primary" style="margin-top:0" data-a="addr">Runde hinzufügen</button></div>'}else{h+=(S.bock>0?'<div class="bk">Bockspiel: Wert wird verdoppelt, noch '+S.bock+' offen</div>':'')+'<h2>Spiel eintragen</h2><label class="lab" for="val">Spielwert</label><input id="val" type="number" inputmode="numeric" min="0" step="1" value="'+esc(val)+'" placeholder="Punkte">';
+  h+=P.map(function(p,i){
+    if(sits(i,d))return'<div class="row off"><span class="nm">'+esc(p)+'</span><span class="hint">setzt aus</span></div>';
+    return'<div class="row"><span class="nm">'+esc(p)+'</span><span id="pv'+i+'" class="pv '+(c.pv[i]>0?'pos':'neg')+'">'+(i in c.pv?fmt(c.pv[i]):'')+'</span>'+
+    '<button class="seg'+(sel[i]=='w'?' on w':'')+'" data-a="w" data-i="'+i+'" aria-pressed="'+(sel[i]=='w')+'">Gewonnen</button>'+
+    '<button class="seg'+(sel[i]=='l'?' on l':'')+'" data-a="l" data-i="'+i+'" aria-pressed="'+(sel[i]=='l')+'">Verloren</button></div>'}).join('');
+  h+='<button class="primary" id="sub" data-a="sub"'+(c.ok?'':' disabled')+'>Spiel eintragen</button>';}
+  h+='<h2>Verlauf</h2>';
+  if(!S.games.length&&!fx)h+='<p class="empty">Noch kein Spiel eingetragen.</p>';
+  else{
+    h+='<div class="wrap"><table><thead><tr><th>Nr.</th>'+P.map(function(p){return'<th>'+esc(p)+'</th>'}).join('')+'</tr></thead><tbody>';
+    var m=fx?Math.max(tot,S.games.length):S.games.length+(S.bock||0);
+    for(var q=0;q<m;q++){var k=fx?q:m-1-q,g=S.games[k];if(!g){h+='<tr><td>'+(k+1)+(k<S.games.length+(S.bock||0)?' <span class="bkm">Bock</span>':'')+'<small>&nbsp;</small></td>'+P.map(function(){return'<td></td>'}).join('')+'</tr>';continue}
+      h+='<tr><td>'+(k+1)+(g.bk?' <span class="bkm">Bock</span>':'')+'<small>Wert '+g.value+(g.bk?', ×2':'')+'</small></td>'+P.map(function(_,i){return'<td>'+(sits(i,g.dealer)?'\u2013':fmt(g.d[i]))+'</td>'}).join('')+'</tr>'}
+    h+='</tbody></table></div>';
+  }
+  h+=(fx&&!done?'<button class="ghost" data-a="addr">Runde hinzufügen</button>':'')+'<div class="foot"><button data-a="undo"'+(S.games.length?'':' disabled')+'>Letztes Spiel zurück</button><button data-a="reset">'+(armed?'Wirklich löschen?':'Neue Runde')+'</button></div><button class="ghost" data-a="wipe">'+(armedW?'Wirklich alles löschen?':'Alles löschen (Namen und Verlauf)')+'</button>';
+  $('#app').innerHTML=h;
+}
+function render(){S.started?game():setup()}
+function refresh(){
+  var c=cur(),b=$('#sub');if(b)b.disabled=!c.ok;
+  S.players.forEach(function(_,i){var e=$('#pv'+i);if(e){e.textContent=(i in c.pv)?fmt(c.pv[i]):'';e.className='pv '+(c.pv[i]>0?'pos':'neg')}})
+}
+$('#app').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b||b.disabled)return;
+  var a=b.dataset.a,i=+b.dataset.i;
+  if(a=='padd'){if(names.length<6)names.push('');render()}else if(a=='prem'){if(names.length>4)names.pop();render()}
+  else if(a=='go'){
+    S={players:names.map(function(x,k){return x.trim()||'Spieler '+(k+1)}),dealer:0,games:[],bock:0,ask:false,askAdd:0,rounds:rounds,started:true};
+    sel={};val='';save();render()}
+  else if(a=='w'||a=='l'){sel[i]=sel[i]==a?undefined:a;render()}
+  else if(a=='sub'){
+    var c=cur();if(!c.ok)return;
+    S.games.push({dealer:S.dealer,value:+val,bk:S.bock>0,bb:S.bock||0,d:S.players.map(function(_,k){return c.pv[k]||0})});
+    msg='';if(S.bock>0)S.bock--;S.ask=true;S.askAdd=0;S.dealer=(S.dealer+1)%S.players.length;sel={};val='';save();render()}
+  else if(a=='re'){rounds=0;render()}else if(a=='rf'){rounds=rounds||-1;render()}else if(a=='addr'){S.rounds=(S.rounds||0)+1;rounds=S.rounds;save();render()}
+  else if(a=='wipe'){
+    if(!armedW){armedW=true;render();setTimeout(function(){armedW=false;render()},4000)}
+    else{armedW=false;rounds=0;names=['','','',''];S={players:[],dealer:0,games:[],bock:0,ask:false,askAdd:0,started:false};sel={};val='';try{localStorage.removeItem('dk1')}catch(e){}render()}}
+  else if(a=='bock'){S.bock=(S.bock||0)+S.players.length;S.askAdd=(S.askAdd||0)+1;save();render()}
+  else if(a=='fin'){S.ask=false;S.askAdd=0;save();render()}
+  else if(a=='undo'){var g=S.games.pop();S.dealer=g.dealer;S.bock=g.bb||0;S.ask=false;S.askAdd=0;sel={};save();render()}
+  else if(a=='reset'){
+    if(!armed){armed=true;render();setTimeout(function(){armed=false;if(S.started)render()},4000)}
+    else{armed=false;names=S.players.slice();S={players:[],dealer:0,games:[],started:false};sel={};val='';save();render()}}
+});
+$('#app').addEventListener('input',function(e){
+  var t=e.target;
+  if(t.classList.contains('name'))names[+t.dataset.i]=t.value;
+  else if(t.id=='val'){val=t.value;refresh()}
+  else if(t.id=='rn'){var q=parseInt(t.value);rounds=q>0?q:-1;var gb=$('[data-a="go"]');if(gb)gb.disabled=rounds<0}
+});
+$('#app').addEventListener('change',function(e){
+  if(e.target.id=='dealer'){S.dealer=+e.target.value;S.players.forEach(function(_,i){if(sits(i,S.dealer))delete sel[i]});save();render()}
+});
+rounds=S.rounds||0;if(S.started&&S.players.length>=4){}else{S.started=false;if(S.players.length)names=S.players.slice()}
+render();
+</script>
+</body>
+</html>
