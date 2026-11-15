@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Doppelkopf">
+<meta name="theme-color" content="#1F5A40">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <title>Doppelkopf Zähler</title>
 <style>
 :root{color-scheme:light dark;--bg:#EDF0EA;--ink:#14281F;--card:#fff;--win:#1F5A40;--onw:#fff;--red:#B3262E;--muted:#55665C;--line:#D3DAD2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -210,6 +216,7 @@ $('#app').addEventListener('change',function(e){
 });
 rounds=S.rounds||0;if(S.started&&S.players.length>=4){}else{S.started=false;if(S.players.length)names=S.players.slice()}
 render();
+if('serviceWorker' in navigator){window.addEventListener('load',function(){try{navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}})}
 </script>
 </body>
 </html>
